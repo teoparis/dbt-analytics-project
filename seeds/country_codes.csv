@@ -1,0 +1,25 @@
+country_code,country_name,region
+AT,Austria,EU
+BE,Belgium,EU
+BR,Brazil,LATAM
+CA,Canada,NA
+CH,Switzerland,EU
+DE,Germany,EU
+DK,Denmark,EU
+ES,Spain,EU
+FR,France,EU
+GB,United Kingdom,EU
+IN,India,APAC
+IT,Italy,EU
+JP,Japan,APAC
+MX,Mexico,LATAM
+NL,Netherlands,EU
+PL,Poland,EU
+PT,Portugal,EU
+SE,Sweden,EU
+SG,Singapore,APAC
+US,United States,NA
+AU,Australia,APAC
+NZ,New Zealand,APAC
+ZA,South Africa,AFRICA
+AE,United Arab Emirates,MEA
