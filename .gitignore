@@ -1,0 +1,29 @@
+# dbt artifacts
+target/
+dbt_packages/
+logs/
+
+# dbt credentials
+.dbt/
+profiles.yml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
