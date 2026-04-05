@@ -1,0 +1,46 @@
+# Copy this file to ~/.dbt/profiles.yml and fill in your credentials.
+# Never commit the real profiles.yml — it contains secrets.
+
+ecommerce_analytics:
+  target: dev  # default target
+
+  outputs:
+
+    # ── Development (local Postgres) ───────────────────────────────────────────
+    dev:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: "{{ env_var('DBT_DEV_USER', 'postgres') }}"
+      password: "{{ env_var('DBT_DEV_PASSWORD') }}"
+      dbname: ecommerce_dev
+      schema: "dbt_{{ env_var('DBT_USER', 'local') }}"  # personal schema isolation
+      threads: 4
+      keepalives_idle: 0
+
+    # ── CI (Postgres in GitHub Actions) ────────────────────────────────────────
+    ci:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: postgres
+      password: postgres
+      dbname: ecommerce_test
+      schema: dbt_ci
+      threads: 4
+
+    # ── Production (Snowflake) ──────────────────────────────────────────────────
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"       # e.g. xy12345.eu-west-1
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      # Prefer key-pair auth over password in production
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'TRANSFORMER') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'ANALYTICS') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'TRANSFORMING_WH') }}"
+      schema: analytics  # overridden per-model via generate_schema_name macro
+      threads: 8
+      client_session_keep_alive: false
+      query_tag: dbt_prod
