@@ -1,0 +1,102 @@
+name: dbt CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'models/**'
+      - 'macros/**'
+      - 'tests/**'
+      - 'seeds/**'
+      - 'dbt_project.yml'
+      - 'packages.yml'
+
+concurrency:
+  group: dbt-ci-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  DBT_PROFILES_DIR: ${{ github.workspace }}
+  DBT_DEV_USER: postgres
+  DBT_DEV_PASSWORD: postgres
+  DBT_USER: ci
+
+jobs:
+  dbt-ci:
+    name: dbt compile + test (modified models)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ecommerce_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for state:modified comparison
+
+      - name: Checkout base branch (for state comparison)
+        run: |
+          git fetch origin ${{ github.base_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dbt-core + dbt-postgres
+        run: |
+          pip install --upgrade pip
+          pip install dbt-core dbt-postgres
+
+      - name: Copy CI profiles
+        run: cp profiles.yml.example profiles.yml
+
+      - name: Install dbt packages
+        run: dbt deps
+
+      - name: Seed reference tables
+        run: dbt seed --target ci --full-refresh
+
+      - name: Compile all models (syntax check)
+        run: dbt compile --target ci
+
+      - name: Run modified models + downstream
+        run: |
+          dbt run \
+            --target ci \
+            --select state:modified+ \
+            --state target/ \
+            --defer \
+            --favor-state \
+            || dbt run --target ci  # fall back to full run if no state available
+
+      - name: Test modified models + downstream
+        run: |
+          dbt test \
+            --target ci \
+            --select state:modified+ \
+            --store-failures \
+            || dbt test --target ci
+
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-artifacts-${{ github.run_id }}
+          path: |
+            target/manifest.json
+            target/run_results.json
+          retention-days: 7
