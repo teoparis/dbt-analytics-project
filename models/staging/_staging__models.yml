@@ -1,0 +1,124 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: >
+      Cleaned and renamed order records from the raw source.
+      One row per order. Types are cast, status is lowercased, and derived
+      boolean flags are added for common filters.
+    columns:
+      - name: order_id
+        description: Surrogate primary key derived from the source order ID.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Foreign key to stg_customers.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']
+      - name: is_paid
+        description: True when the order has been paid (status in delivered, shipped).
+        tests:
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+      - name: country_code
+        tests:
+          - not_null
+
+  - name: stg_customers
+    description: >
+      Cleaned customer records. Email is lowercased and trimmed.
+      Country codes are uppercased for consistency with the seeds reference table.
+    columns:
+      - name: customer_id
+        description: Primary key.
+        tests:
+          - not_null
+          - unique
+      - name: email
+        tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_match_regex:
+              regex: "^[^@]+@[^@]+\\.[^@]+$"
+      - name: country_code
+        tests:
+          - not_null
+          - relationships:
+              to: ref('country_codes')
+              field: country_code
+      - name: created_at
+        tests:
+          - not_null
+
+  - name: stg_products
+    description: >
+      Cleaned product catalogue. Category is lowercased and validated.
+      Price is stored in cents (integer) to avoid floating-point issues.
+    columns:
+      - name: product_id
+        description: Primary key.
+        tests:
+          - not_null
+          - unique
+      - name: sku
+        tests:
+          - not_null
+          - unique
+      - name: category
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['software', 'hardware', 'services', 'subscriptions', 'support']
+      - name: unit_price_cents
+        tests:
+          - not_null
+          - test_positive_amount:
+              column_name: unit_price_cents
+
+  - name: stg_order_items
+    description: >
+      Cleaned order line items. Adds a derived line_total_cents column
+      (quantity * unit_price_cents) so downstream models don't recompute it.
+    columns:
+      - name: order_item_id
+        description: Primary key.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: quantity
+        tests:
+          - not_null
+          - test_positive_amount:
+              column_name: quantity
+      - name: unit_price_cents
+        tests:
+          - not_null
+          - test_positive_amount:
+              column_name: unit_price_cents
+      - name: line_total_cents
+        description: quantity * unit_price_cents — pre-computed for performance.
+        tests:
+          - not_null
