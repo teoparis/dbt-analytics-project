@@ -1,0 +1,89 @@
+name: 'ecommerce_analytics'
+version: '1.0.0'
+config-version: 2
+
+# dbt profile to use for this project (must match profiles.yml)
+profile: 'ecommerce_analytics'
+
+# Path configurations
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# Directories dbt should never alter (source of truth)
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# ──────────────────────────────────────────────────────────
+# Global model configurations
+# ──────────────────────────────────────────────────────────
+models:
+  ecommerce_analytics:
+
+    # Staging: views — cheap, always up-to-date, 1:1 with sources
+    staging:
+      +materialized: view
+      +schema: staging
+      +tags: ["staging"]
+
+    # Intermediate: ephemeral — compiled into CTEs, no physical tables
+    intermediate:
+      +materialized: ephemeral
+      +tags: ["intermediate"]
+
+    # Marts: physical tables, partitioned where appropriate
+    marts:
+      +materialized: table
+      +tags: ["mart"]
+      +grants:
+        select: ["role_analyst", "role_bi_tool"]
+
+      core:
+        +schema: core
+        fct_orders:
+          +materialized: incremental
+          +incremental_strategy: merge
+          +unique_key: order_id
+        dim_customers:
+          +materialized: table
+
+      finance:
+        +schema: finance
+        fct_revenue_daily:
+          +materialized: incremental
+          +incremental_strategy: merge
+          +unique_key: ['revenue_date', 'country_code', 'product_category']
+
+# ──────────────────────────────────────────────────────────
+# Seed configurations
+# ──────────────────────────────────────────────────────────
+seeds:
+  ecommerce_analytics:
+    country_codes:
+      +schema: seeds
+      +column_types:
+        country_code: varchar(2)
+        country_name: varchar(100)
+        region: varchar(20)
+
+# ──────────────────────────────────────────────────────────
+# Snapshot configurations
+# ──────────────────────────────────────────────────────────
+snapshots:
+  ecommerce_analytics:
+    +target_schema: snapshots
+    +strategy: timestamp
+    +updated_at: updated_at
+
+# ──────────────────────────────────────────────────────────
+# Variable defaults
+# ──────────────────────────────────────────────────────────
+vars:
+  # Used by incremental models to limit backfill window in dev
+  start_date: '2023-01-01'
+  # Currency for financial reporting
+  reporting_currency: 'EUR'
