@@ -1,0 +1,124 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Raw tables ingested from the production OLTP database via Fivetran.
+      Do not reference these directly in marts — always go through staging models.
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'ANALYTICS') }}"
+    schema: raw
+
+    # Source-level freshness defaults (overridden per table where needed)
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+    loaded_at_field: _fivetran_synced
+
+    tables:
+      - name: orders
+        description: One row per order placed on the platform.
+        columns:
+          - name: id
+            description: Primary key — internal order ID.
+            tests:
+              - not_null
+              - unique
+          - name: customer_id
+            tests:
+              - not_null
+          - name: status
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']
+          - name: created_at
+            tests:
+              - not_null
+          - name: updated_at
+            tests:
+              - not_null
+
+      - name: order_items
+        description: Line items within an order. One row per (order, product) pair.
+        columns:
+          - name: id
+            tests:
+              - not_null
+              - unique
+          - name: order_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'orders')
+                  field: id
+          - name: product_id
+            tests:
+              - not_null
+          - name: quantity
+            tests:
+              - not_null
+          - name: unit_price_cents
+            tests:
+              - not_null
+
+      - name: customers
+        description: Registered customer accounts.
+        freshness:
+          warn_after: {count: 48, period: hour}   # customers table ingested less frequently
+          error_after: {count: 72, period: hour}
+        columns:
+          - name: id
+            tests:
+              - not_null
+              - unique
+          - name: email
+            tests:
+              - not_null
+              - unique
+          - name: created_at
+            tests:
+              - not_null
+
+      - name: products
+        description: Product catalogue with pricing and category metadata.
+        freshness:
+          warn_after: {count: 48, period: hour}
+          error_after: {count: 96, period: hour}
+        columns:
+          - name: id
+            tests:
+              - not_null
+              - unique
+          - name: sku
+            tests:
+              - not_null
+              - unique
+          - name: category
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['software', 'hardware', 'services', 'subscriptions', 'support']
+
+      - name: subscriptions
+        description: Recurring subscription records, one row per subscription lifecycle event.
+        columns:
+          - name: id
+            tests:
+              - not_null
+              - unique
+          - name: customer_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'customers')
+                  field: id
+          - name: plan
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['starter', 'growth', 'business', 'enterprise']
+          - name: status
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['active', 'cancelled', 'past_due', 'trialing', 'paused']
