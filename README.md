@@ -1,4 +1,4 @@
-# ecommerce_analytics — dbt Project
+# ecommerce_analytics: dbt Project
 
 Analytics engineering project for a SaaS e-commerce platform. Built with **dbt Core** on **Snowflake** (Postgres-compatible for local dev).
 
@@ -9,7 +9,7 @@ Raw Layer (Snowflake RAW schema)
        │
        ▼
 ┌─────────────────────────────────────────────────────────┐
-│  STAGING  (views — 1:1 with source tables)              │
+│  STAGING  (views: 1:1 with source tables)              │
 │                                                         │
 │  stg_orders   stg_customers   stg_products              │
 │  stg_order_items   stg_subscriptions                    │
@@ -17,14 +17,14 @@ Raw Layer (Snowflake RAW schema)
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────┐
-│  INTERMEDIATE  (ephemeral — business logic, joins)      │
+│  INTERMEDIATE  (ephemeral: business logic, joins)      │
 │                                                         │
 │  int_orders_enriched   int_customer_lifetime            │
 └────────────────────────┬────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────┐
-│  MARTS  (tables/incremental — ready for BI tools)       │
+│  MARTS  (tables/incremental: ready for BI tools)       │
 │                                                         │
 │  core/                 finance/                         │
 │  ├─ fct_orders         └─ fct_revenue_daily             │
@@ -122,7 +122,7 @@ All fact and dimension tables use `dbt_utils.generate_surrogate_key()` to produc
 `fct_orders` and `fct_revenue_daily` use the `incremental` materialisation with `unique_key` to support idempotent upserts. The filter `_dbt_max_partition` is applied on `updated_at` so Snowflake can prune micro-partitions efficiently.
 
 ### Ephemeral Intermediate Layer
-Intermediate models are `ephemeral` — they compile into CTEs within the mart query rather than materialising physical tables. This keeps the warehouse clean while still allowing logical separation of concerns.
+Intermediate models are `ephemeral`, they compile into CTEs within the mart query rather than materialising physical tables. This keeps the warehouse clean while still allowing logical separation of concerns.
 
 ### Source Freshness
 All sources declare `freshness` thresholds. Running `dbt source freshness` will warn if data is older than 24 h and error if older than 48 h, enabling proactive alerting in CI.
